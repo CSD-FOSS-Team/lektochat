@@ -3,8 +3,9 @@ from sqlite3 import Error
 
 
 class LektoServer:
-    # TODO: Index IPs
     def __init__(self, db_name):
+        # TODO: Read option from file
+        self.index = False
         try:
             # Create database in memory
             # TODO: Add option to store database in file
@@ -30,11 +31,11 @@ class LektoServer:
             sql_query = """INSERT INTO users(id,username,ip,connectiontime) 
                            VALUES(NULL,?,?,strftime('%s','now'));"""
             values = (username, ip)
-            # Should be safe from injetion
+            # Should be safe from injection
             self.cursor.execute(sql_query, values)
             self.database.commit()
         except sqlite3.Error as e:
-            print(e)
+            print('ERROR:', e)
 
     def disconnect(self, ip):
         # Get the IP we want disconnected
@@ -47,17 +48,23 @@ class LektoServer:
     def search(self, username):
         # Get the IP of the user that matches the given ID
         # If they do not exist return None
-        sql_query = "SELECT * FROM users WHERE username=?"
+        sql_query = "SELECT ip FROM users WHERE username=?"
         self.cursor.execute(sql_query, (username,))
         results = self.cursor.fetchall()
-        # Fetchall return the matching rows as a list of tuples
-        if results is not []:
-            # The length of the list must be 1 as usernames are unique
-            return results[0][2]  # The IP is the third entry in a row
+        # Fetchall returns a list of tuples
+        if results.__len__() > 0:
+            return results[0][0]  # The IP is the third entry in a row
         else:
             return None
 
-    # TODO: Method to get all usernames and IPs
+    def getallusers(self):
+        # TODO: Use dictionary instead of tuple
+        """Returns a tuple containing tuples of type (username,ip)"""
+        sql_query = "SELECT username, ip FROM users"
+        self.cursor.execute(sql_query)
+        results = self.cursor.fetchall()
+        return tuple(results)
+
     # TODO: Create username index for faster searching
     # TODO: Instead of using usernames to ID users, use UUIDs
     # TODO: Use connection time to identify if user is the same(client side work required)
