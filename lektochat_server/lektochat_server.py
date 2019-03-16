@@ -1,4 +1,6 @@
 import sqlite3
+import ipaddress
+import sys
 from sqlite3 import Error
 
 
@@ -26,24 +28,39 @@ class LektoServer:
             self.cursor.execute(sql_create_table)
 
     def newconnection(self, username, ip):
-        # Creates a new entry in the database for a user
+        """Creates a new entry in the database for a user. Returns True if successful or False if failed"""
         try:
             sql_query = """INSERT INTO users(id,username,ip,connectiontime) 
                            VALUES(NULL,?,?,strftime('%s','now'));"""
             values = (username, ip)
+            # Test if IP is valid
+            ipaddress.ip_address(ip)
             # Should be safe from injection
             self.cursor.execute(sql_query, values)
             self.database.commit()
+            return True
         except sqlite3.Error as e:
-            print('ERROR:', e)
+            print('ERROR:', e, file=sys.stderr)
+            return False
+        except ValueError:
+            print('ERROR: Not a valid IP address!', file=sys.stderr)
+            return False
 
     def disconnect(self, ip):
-        # Get the IP we want disconnected
+        """Get the IP we want disconnected. Return True if deletion succeeds, False if an error occurs and None
+        if the IP does not exist in the database"""
         self.cursor.execute("SELECT * FROM users WHERE ip=?", (ip,))
         results = self.cursor.fetchall()
         sql_query = "DELETE FROM users WHERE id=?"
-        self.cursor.execute(sql_query, (results[0][0],))
-        self.database.commit()
+        if len(results) > 0:
+            try:
+                self.cursor.execute(sql_query, (results[0][0],))
+                self.database.commit()
+                return True
+            except sqlite3.Error as err:
+                print(err)
+                return False
+        return None
 
     def search(self, username):
         # Get the IP of the user that matches the given ID
@@ -70,4 +87,3 @@ class LektoServer:
     # TODO: Use connection time to identify if user is the same(client side work required)
     # TODO: Add checks
     # TODO: Add authentication (?????)
-    # TODO: Instead of deleting disconnected users "deactivate" them (move to other table or sth)
