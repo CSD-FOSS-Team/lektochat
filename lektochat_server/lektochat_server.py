@@ -1,13 +1,21 @@
 import sqlite3
 import ipaddress
 import sys
+import queue
+import time
 from sqlite3 import Error
 
 
 class LektoServer:
-    def __init__(self, db_name):
+    def __init__(self, db_name, queue_limit=100, index=False):
         # TODO: Read option from file
-        self.index = False
+        if index:
+            self.createindex()
+        # Time between database cleanup
+        # TODO: Cleanup every set amount of time
+        self.deletiontimer = 180000
+        self.deletionqueue = queue.Queue(queue_limit)
+        self.lastcleanup = time.time()
         try:
             # Create database in memory
             # TODO: Add option to store database in file
@@ -47,15 +55,19 @@ class LektoServer:
             return False
 
     def disconnect(self, ip):
-        """Get the IP we want disconnected. Return True if deletion succeeds, False if an error occurs and None
+        """Get the IP we want disconnected. Return True if deletion is queued successfully and None
         if the IP does not exist in the database"""
         self.cursor.execute("SELECT * FROM users WHERE ip=?", (ip,))
         results = self.cursor.fetchall()
         sql_query = "DELETE FROM users WHERE id=?"
+        # If queue is full empty it
+        if self.deletionqueue.full():
+            while not self.deletionqueue.empty():
+                self.cursor.execute(self.deletionqueue.get())
+            self.database.commit()
         if len(results) > 0:
             try:
-                self.cursor.execute(sql_query, (results[0][0],))
-                self.database.commit()
+                self.deletionqueue.put(sql_query)
                 return True
             except sqlite3.Error as err:
                 print(err)
@@ -82,6 +94,19 @@ class LektoServer:
         results = self.cursor.fetchall()
         return tuple(results)
 
+    def processqueue(self):
+        while not self.deletionqueue.empty():
+            self.cursor.execute(self.deletionqueue.get())
+        self.database.commit()
+
+    def createindex(self):
+        try:
+            self.cursor.execute("CREATE INDEX username_index ON users (username)")
+            self.database.commit()
+            return True
+        except sqlite3.Error as err:
+            print(err)
+            return False
     # TODO: Create username index for faster searching
     # TODO: Instead of using usernames to ID users, use UUIDs
     # TODO: Use connection time to identify if user is the same(client side work required)
