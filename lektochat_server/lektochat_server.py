@@ -1,21 +1,32 @@
-import sqlite3
 import ipaddress
-import sys
 import queue
+import sqlite3
+import sys
 import time
+import uuid
+
 from sqlite3 import Error
 
 
 class LektoServer:
+    """Server to be used alongside Lektochat client"""
+
     def __init__(self, db_name, queue_limit=100, index=False):
+        """
+        Initializes the database
+        :param db_name: The  name of the database
+        :param queue_limit: Maximum number of items in deletion queue
+        :param index: Whether an index should be created
+        :type index: bool
+        """
         # TODO: Read option from file
         if index:
-            self.createindex()
+            self._createindex()
         # Time between database cleanup
-        # TODO: Cleanup every set amount of time
+        # TODO: Cleanup every set amount of time. Maybe this should not be implemented in the class, but in the server
         self.deletiontimer = 180000
         self.deletionqueue = queue.Queue(queue_limit)
-        self.lastcleanup = time.time()
+        self._lastcleanup = time.time()
         try:
             # Create database in memory
             # TODO: Add option to store database in file
@@ -26,32 +37,40 @@ class LektoServer:
             print(e)
         sql_create_table = """ CREATE TABLE IF NOT EXISTS users (
                                             id integer PRIMARY KEY,
-                                            username text NOT NULL UNIQUE,
-                                            ip text NOT NULL,
-                                            connectiontime integer
+                                            uuid text NOT NULL UNIQUE,
+                                            ip text NOT NULL UNIQUE,
+                                            connectiontime integer,
+                                            lastheard integer
                                         ); """
         if self.database is not None:
             # Obtain a cursor and execute the query
             self.cursor = self.database.cursor()
             self.cursor.execute(sql_create_table)
 
-    def newconnection(self, username, ip):
-        """Creates a new entry in the database for a user. Returns True if successful or False if failed"""
+    def newconnection(self, ip):
+        """
+        Creates a database entry for a new user and assigns her a unique identifier.
+        :param ip: The IP address of the new user as a string
+        :return: Returns False if an error was encountered, otherwise returns true.
+        :rtype bool:
+        """
+        sql_query = """INSERT INTO users(id,uuid,ip,connectiontime,lastheard)
+                       VALUES(NULL,?,?,strftime('%s','now'),strftime('%s','now'));"""
+        clientuuid = uuid.uuid4().hex
+        values = (clientuuid, ip)
         try:
-            sql_query = """INSERT INTO users(id,username,ip,connectiontime) 
-                           VALUES(NULL,?,?,strftime('%s','now'));"""
-            values = (username, ip)
             # Test if IP is valid
             ipaddress.ip_address(ip)
+        except ValueError:
+            print('ERROR: Not a valid IP address!', file=sys.stderr)
+            return False
+        try:
             # Should be safe from injection
             self.cursor.execute(sql_query, values)
             self.database.commit()
             return True
         except sqlite3.Error as e:
             print('ERROR:', e, file=sys.stderr)
-            return False
-        except ValueError:
-            print('ERROR: Not a valid IP address!', file=sys.stderr)
             return False
 
     def disconnect(self, ip):
@@ -74,11 +93,18 @@ class LektoServer:
                 return False
         return None
 
-    def search(self, username):
+    def search(self, searchuuid):
+        # TODO: This function will be deleted
+        """
+        Searches for a certain UUID in the database and returns the IP associated to it
+        :param searchuuid: UUID
+        :return: IP as a string if search is successful, None if the UUID is not found
+        :rtype: str or None
+        """
         # Get the IP of the user that matches the given ID
         # If they do not exist return None
-        sql_query = "SELECT ip FROM users WHERE username=?"
-        self.cursor.execute(sql_query, (username,))
+        sql_query = "SELECT ip FROM users WHERE uuid=?"
+        self.cursor.execute(sql_query, (searchuuid,))
         results = self.cursor.fetchall()
         # Fetchall returns a list of tuples
         if results.__len__() > 0:
@@ -87,27 +113,56 @@ class LektoServer:
             return None
 
     def getallusers(self):
+        """
+        Returns a tuple containing tuples of type (uuid,ip)
+        :rtype: tuple
+        """
         # TODO: Use dictionary instead of tuple
-        """Returns a tuple containing tuples of type (username,ip)"""
-        sql_query = "SELECT username, ip FROM users"
+        sql_query = "SELECT uuid, ip FROM users"
         self.cursor.execute(sql_query)
         results = self.cursor.fetchall()
         return tuple(results)
 
     def processqueue(self):
+        """
+        Executes all the deletions that have been queued
+        """
         while not self.deletionqueue.empty():
-            self.cursor.execute(self.deletionqueue.get())
+            try:
+                self.cursor.execute(self.deletionqueue.get())
+            except sqlite3.Error as err:
+                print('ERROR:', err, file=sys.stderr)
         self.database.commit()
 
-    def createindex(self):
+    def _createindex(self):
+        """
+        Creates index of the UUID column for faster searching
+        :return: True if creation was successful False if
+        :rtype: bool
+        """
         try:
-            self.cursor.execute("CREATE INDEX username_index ON users (username)")
+            self.cursor.execute("CREATE INDEX uuid_index ON users (uuid)")
             self.database.commit()
             return True
         except sqlite3.Error as err:
-            print(err)
+            print('ERROR:', err, file=sys.stderr)
             return False
-    # TODO: Create username index for faster searching
+
+    def updateconnection(self, searchuuid):
+        """
+        Sets last heard time to now for specified UUID
+        """
+        sql_query = "UPDATE users SET lastheard=strftime('%s','now') WHERE uuid=?"
+        values = (searchuuid,)
+        try:
+            self.cursor.execute(sql_query, values)
+            self.database.commit()
+        except sqlite3.Error as err:
+            print('ERROR:', err, file=sys.stderr)
+            return False
+
+    # TODO: Make queue run every set amount of time
+    # TODO: Create uuid index for faster searching
     # TODO: Instead of using usernames to ID users, use UUIDs
     # TODO: Use connection time to identify if user is the same(client side work required)
     # TODO: Add checks
