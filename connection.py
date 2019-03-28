@@ -10,12 +10,11 @@ class ConnectionHandler:
     # - handshakeListener()
     def __init__(self):
         self.stopHandshakeListening = False
-        self.HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
+        # Standard loopback interface address (localhost)
+        self.HOST = '127.0.0.1'
         self.PORT = 7890  # Port to listen on (non-privileged ports are > 1023)
         self.connectedClients = []
         self.handshakeListener()
-
-
 
     def handshakeListener(self):
         print("*** Server is up and running! ***")
@@ -37,10 +36,10 @@ class ConnectionHandler:
                     # for this specific connection
                     try:
 
-                        self.connectedClients.append(ConnectedClient(connectionSocket))
+                        self.connectedClients.append(
+                            ConnectedClient(connectionSocket))
                     except:
                         print("Error: unable to start thread")
-
 
                     # while True:
                     #     data = conn.recv(1024)
@@ -48,16 +47,9 @@ class ConnectionHandler:
                     #         break
                     #     conn.sendall(data)
 
-
     def connectToServer(self):
 
-
-
     def createConnectedClient(self):
-
-
-
-
 
 
 class ConnectedClient:
@@ -68,15 +60,11 @@ class ConnectedClient:
 
     def __init__(self, connectionSocket):
 
-        self.requestHandlerProcess = multiprocessing.Process(target=self.requestHandler, args=(connectionSocket, ))
+        self.requestHandlerProcess = multiprocessing.Process(
+            target=self.requestHandler, args=(connectionSocket, ))
         self.requestHandlerProcess.start()
 
-
-
     def requestHandler(self, connectionSocket):
-
-
-
 
     def sendMsg(self, msg, sock):
         # Used to form the message that we will send in a proper form (length + message) and ensure that
@@ -116,7 +104,6 @@ class ConnectedClient:
                 return None
             data += packet
         return data
-
 
 
 class Server:
