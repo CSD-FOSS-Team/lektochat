@@ -1,5 +1,6 @@
 import socket
 import multiprocessing
+import struct
 
 
 class ConnectionHandler:
@@ -74,12 +75,47 @@ class ConnectedClient:
 
     def requestHandler(self, connectionSocket):
 
-    def send(self):
-
-    def receive(self):
 
 
 
+    def sendMsg(self, msg, sock):
+        # Used to form the message that we will send in a proper form (length + message) and ensure that
+        # the whole message will be sent at once
+
+        # Prefix each message with a 4-byte length (network byte order)
+
+        # https://stackoverflow.com/questions/9742449/sending-sockets-data-with-a-leading-length-value
+        # https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
+
+        msg = struct.pack('>I', len(msg)) + msg
+        sock.sendall(msg)
+
+    def receiveMsg(self, sock):
+        # Will be used to ensure that the whole message is received every time through the socket
+
+        # https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
+
+        # Read message length and unpack it into an integer
+
+        rawMsgLen = self.receiveAll(sock, 4)
+        if not rawMsgLen:
+            return None
+        msgLen = struct.unpack('>I', rawMsgLen)[0]
+        # Read the message data
+        return self.receiveAll(sock, msgLen)
+
+    def receiveAll(self, sock, n):
+        # https://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
+
+        # Helper function to recv n bytes or return None if EOF is hit
+
+        data = b''
+        while len(data) < n:
+            packet = sock.recv(n - len(data))
+            if not packet:
+                return None
+            data += packet
+        return data
 
 
 
