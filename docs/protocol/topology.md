@@ -10,7 +10,15 @@ That way the server is only required during client discovery. Client messages ne
 
 ## Protocol
 
-Big endian encoding and 4 byte alignment is used for communication.
+Version: 0.0.1
+
+|   Constants   |  Value  |
+|:-------------:|:-------:|
+| VERSION_MAJOR |   0x0   |
+| VERSION_MINOR |   0x0   |
+| VERSION_EXTRA |   0x0   |
+
+Big endian encoding and 4 byte alignment is used encoding data.
 
 ### Server \<-\> Client
 
