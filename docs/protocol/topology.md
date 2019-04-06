@@ -1,13 +1,21 @@
-# Lektochat network topology.
+# Lektochat network topology
 
-For each 'net' there is a central server which clients connect to. The server stores only information which helps clients discover and connect to other clients, not identify them. Most of the communications happen with p2p connections between clients.
+A group of clients is defined by the server they connect to.
 
-All of the protocol documentation assumes big endian encoding, unless otherwise specified.
+The server only tracks the connected clients and distributes that information to the rest of the clients.
 
-## Server \<-\> Client protocol.
+Client to client communication happens exclusively with direct(p2p) connections.
+
+That way the server is only required during client discovery. Client messages never traverse the server.
+
+## Protocol
+
+Big endian encoding and 4 byte alignment is used for communication.
+
+### Server \<-\> Client
 
 Please refer to [server-client](server_client.md).
 
-## Client \<-\> Client protocol.
+### Client \<-\> Client
 
 Please refer to [client-client](client_client.md).
