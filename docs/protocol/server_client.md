@@ -157,7 +157,7 @@ This field's length and meaning depends on the _index of method_. For more infor
 
 After [Connection Setup](#connection-setup) phase concludes, the client and server go into the [heartbeat](#heartbeat) phase.
 
-In this state, the client sends [heartbeat request](#heartbeat-request-packet) and the server responds with a number of [update responses](#update-response-packet), which contain the difference(what changed) from the last update.
+In this state, the client sends [heartbeat request](#heartbeat-request-packet) and the server responds with a number of [update responses](#update-response-packet), which contain what changed from the last update.
 
 ### Heartbeat Request Packet
 
