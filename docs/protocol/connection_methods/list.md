@@ -1,3 +1,3 @@
 # List of Connection Methods
 
-1. [Direct TCP](1.md)
+1. [Direct TCP](tcp.md)
