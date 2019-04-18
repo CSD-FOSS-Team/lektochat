@@ -1,6 +1,6 @@
 import pytest
 import tempfile
-from lektochat_server.lektochat_server import LektoServer
+from server.server import LektoServer
 
 tempdb = tempfile.NamedTemporaryFile()
 server = LektoServer(tempdb.name)
